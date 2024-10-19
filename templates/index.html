@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Draw Polygon on Map</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <style>
+        #map {
+            height: 400px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        #coordinates {
+            font-family: monospace;
+            white-space: pre-wrap;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Draw a Polygon on the Map</h1>
+        <p>Use the drawing tools to create a polygon. The coordinates will appear below the map.</p>
+        <div id="map"></div>
+        <button id="submit">Submit Coordinates</button>
+        <h3>Polygon Coordinates:</h3>
+        <div id="coordinates">No polygon drawn yet</div>
+        <img id="result-image" alt="Generated result" />
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script>
+const submitButton = document.getElementById('submit');
+const resultImage = document.getElementById('result-image');
+
+        // Initialize the map
+        const map = L.map('map').setView([51.505, -0.09], 13);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Initialize the FeatureGroup to store editable layers
+        const drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+
+        // Initialize the draw control
+        const drawControl = new L.Control.Draw({
+            edit: {
+                featureGroup: drawnItems,
+                remove: true
+            },
+            draw: {
+                marker: false,
+                circlemarker: false,
+                circle: false,
+                rectangle: false,
+                polyline: false,
+                polygon: true
+            }
+        });
+        map.addControl(drawControl);
+
+        // Function to update coordinates display
+        function updateCoordinates(layer) {
+            const coordinates = layer.getLatLngs()[0];
+            const coordsText = coordinates
+                .map(coord => `[${coord.lng.toFixed(6)}, ${coord.lat.toFixed(6)}]`)
+                .join('\n');
+            document.getElementById('coordinates').textContent = coordsText;
+        }
+
+        // Handle created polygons
+        map.on('draw:created', function(e) {
+            drawnItems.clearLayers();
+            const layer = e.layer;
+            drawnItems.addLayer(layer);
+            updateCoordinates(layer);
+        });
+
+        // Handle edited polygons
+        map.on('draw:edited', function(e) {
+            const layers = e.layers;
+            layers.eachLayer(function(layer) {
+                updateCoordinates(layer);
+            });
+        });
+
+        // Handle deleted polygons
+        map.on('draw:deleted', function(e) {
+            document.getElementById('coordinates').textContent = 'No polygon drawn yet';
+        });
+
+        async function submitCoordinates() {
+            try {
+                const response = await fetch('/api/polygon', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'plain/text',
+                    },
+                    body: document.getElementById('coordinates').textContent
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const blob = await response.blob();
+                const imageUrl = URL.createObjectURL(blob);
+                resultImage.src = imageUrl;
+                resultImage.style.display = 'block';
+            } catch (error) {
+               
+            } finally {
+              
+            }
+        }
+
+        submitButton.addEventListener('click', submitCoordinates);
+
+    </script>
+</body>
+</html>
